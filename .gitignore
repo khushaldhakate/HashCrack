@@ -1,0 +1,12 @@
+# Dependencies & Environment
+node_modules/
+__pycache__/
+*.pyc
+.env
+hashcrack_vault.json
+dist/
+.DS_Store
+
+# IDE & OS
+.vscode/
+.idea/
