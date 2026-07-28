@@ -1,0 +1,8 @@
+{
+  "mdb.presetConnections": [
+    {
+      "name": "HashCrack Security DB",
+      "connectionString": "mongodb://localhost:27017"
+    }
+  ]
+}

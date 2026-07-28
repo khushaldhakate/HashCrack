@@ -8,6 +8,9 @@ from flask_cors import CORS
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
+# Import Dictionary and Rule-Based attack module
+from attack_rules import DEFAULT_DICTIONARY, generate_rules
+
 app = Flask(__name__)
 CORS(app)
 
@@ -41,29 +44,6 @@ def save_fallback_vault(data):
     except Exception as e:
         print("Fallback save error:", e)
 
-# Dictionary list for offline attacks
-DEFAULT_DICTIONARY = [
-    "password",
-    "admin123",
-    "123456",
-    "khushal",
-    "khushal123",
-    "welcome123",
-    "admin",
-    "secret",
-    "12345678",
-    "pass123",
-    "letmein",
-    "qwerty",
-    "password123",
-    "root",
-    "master",
-    "cyber2026",
-    "security",
-    "dragon",
-    "monkey"
-]
-
 def generate_sha256(plain_text):
     return hashlib.sha256(plain_text.encode('utf-8')).hexdigest()
 
@@ -72,37 +52,6 @@ def generate_salt():
 
 def generate_salted_hash(password, salt):
     return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
-
-# Helper for Rule-Based variations generator
-def generate_rules(base_words):
-    variations = []
-    suffixes = ["123", "@123", "2026", "2025", "!", "@", "#", "1234", "007", "99"]
-    
-    for word in base_words:
-        w_lower = word.lower()
-        w_upper = word.upper()
-        w_cap = word.capitalize()
-        
-        candidates = list(set([word, w_lower, w_upper, w_cap]))
-        for c in candidates:
-            variations.append(c)
-            for s in suffixes:
-                variations.append(f"{c}{s}")
-                
-        # Leetspeak variations
-        leet = w_lower.replace('a', '@').replace('e', '3').replace('i', '1').replace('o', '0').replace('s', '$')
-        variations.append(leet)
-        for s in suffixes:
-            variations.append(f"{leet}{s}")
-            
-    # Deduplicate while keeping order
-    seen = set()
-    dedup = []
-    for v in variations:
-        if v not in seen:
-            seen.add(v)
-            dedup.append(v)
-    return dedup
 
 @app.route('/api/health', methods=['GET'])
 def health():
