@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# HashCrack
-=======
 # HashCrack - Password Hash Security Testing & Offline Attack Simulator
 
 A cybersecurity web application built for password hashing security testing, salt verification, and offline hash attack simulation.
@@ -58,4 +55,3 @@ npm install
 npm run dev
 ```
 *Frontend runs on `http://localhost:3000`*
->>>>>>> 7dce766 (Initial commit: HashCrack - Password Hash Security Testing & Offline Attack Simulator)
