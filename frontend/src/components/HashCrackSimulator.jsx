@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Cpu, Zap, Search, ShieldCheck, ShieldX, Terminal, Play, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Cpu, Zap, ShieldCheck, ShieldX, Terminal, Play } from 'lucide-react';
 
-export default function HashCrackSimulator({ initialHash = '', onCrackSuccess }) {
+const LOG_INTERVAL_MS = 400;
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export default function HashCrackSimulator({ initialHash = '', initialUsername = '', onCrackSuccess }) {
   const [inputHash, setInputHash] = useState(initialHash);
   const [cracking, setCracking] = useState(false);
   const [result, setResult] = useState(null);
   const [logs, setLogs] = useState([]);
   const [progress, setProgress] = useState(0);
+  const runIdRef = useRef(0);
 
   useEffect(() => {
     if (initialHash) {
@@ -14,76 +19,145 @@ export default function HashCrackSimulator({ initialHash = '', onCrackSuccess })
     }
   }, [initialHash]);
 
+  const buildDemoLogSequence = (username) => {
+    const sequence = ['[ENGINE] Loading user profile...'];
+
+    if (!username) {
+      sequence.push('[ENGINE] No registered user profile found for this hash.');
+      sequence.push('[ENGINE] Simulation complete.');
+      return sequence;
+    }
+
+    const base = username.toLowerCase();
+    const variations = [...new Set([
+      base,
+      base.charAt(0).toUpperCase() + base.slice(1),
+      base.toUpperCase(),
+    ])];
+
+    sequence.push(`[ENGINE] Username detected: ${username}`);
+    variations.forEach((variation) => {
+      sequence.push(`[ENGINE] Generated username variation: ${variation}`);
+    });
+    sequence.push('[ENGINE] Simulation complete.');
+    return sequence;
+  };
+
+  const resolveUsername = async (hash, preferredUsername = '') => {
+    if (preferredUsername) {
+      return preferredUsername;
+    }
+
+    try {
+      const lookupResponse = await fetch('/api/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hash }),
+      });
+      const lookupData = await lookupResponse.json();
+      if (lookupData.found && lookupData.username) {
+        return lookupData.username;
+      }
+    } catch {
+      // Fall back to vault scan below
+    }
+
+    try {
+      const vaultResponse = await fetch('/api/vault');
+      const vaultData = await vaultResponse.json();
+      const normalizedHash = hash.toLowerCase();
+      const match = (vaultData.records || []).find((record) => {
+        const recordHash = (record.SHA256_Hash || record.password_hash || '').toLowerCase();
+        return recordHash === normalizedHash;
+      });
+      if (match) {
+        return match.Username || match.username || null;
+      }
+    } catch {
+      // Demo log continues without a matched username
+    }
+
+    return null;
+  };
+
+  const streamDemoLogs = async (logSequence, runId) => {
+    for (let index = 0; index < logSequence.length; index += 1) {
+      if (runIdRef.current !== runId) return;
+
+      setLogs(logSequence.slice(0, index + 1));
+      setProgress(Math.round(((index + 1) / logSequence.length) * 90));
+
+      if (index < logSequence.length - 1) {
+        await delay(LOG_INTERVAL_MS);
+      }
+    }
+  };
+
   const handleStartCrack = async (e) => {
     e.preventDefault();
     const cleanHash = inputHash.trim();
     if (!cleanHash) return;
+
+    const runId = runIdRef.current + 1;
+    runIdRef.current = runId;
 
     setCracking(true);
     setResult(null);
     setLogs([]);
     setProgress(0);
 
-    // Simulated attack progression visualizer
-    const sampleWords = [
-      { word: 'password', type: 'Dictionary Attack' },
-      { word: '123456', type: 'Dictionary Attack' },
-      { word: 'admin123', type: 'Dictionary Attack' },
-      { word: 'khushal', type: 'Dictionary Attack' },
-      { word: 'welcome123', type: 'Dictionary Attack' },
-      { word: 'khushal123', type: 'Rule-Based Attack' },
-      { word: 'Khushal@123', type: 'Rule-Based Attack' },
-      { word: 'KHUSHAL2026', type: 'Rule-Based Attack' },
-    ];
-
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 12;
-      if (currentProgress <= 90) {
-        setProgress(currentProgress);
-        const randomSample = sampleWords[Math.floor(Math.random() * sampleWords.length)];
-        setLogs((prev) => [
-          ...prev.slice(-8),
-          `[ENGINE] Testing candidate "${randomSample.word}" via ${randomSample.type}...`
-        ]);
-      }
-    }, 150);
-
     try {
-      const response = await fetch('/api/crack', {
+      const preferredUsername = initialHash === cleanHash ? initialUsername : '';
+      const detectedUsername = await resolveUsername(cleanHash, preferredUsername);
+      if (runIdRef.current !== runId) return;
+
+      const logSequence = buildDemoLogSequence(detectedUsername);
+
+      const crackPromise = fetch('/api/crack', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hash: cleanHash }),
+      }).then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Crack request failed');
+        }
+        return data;
       });
 
-      const data = await response.json();
+      const [, data] = await Promise.all([
+        streamDemoLogs(logSequence, runId),
+        crackPromise,
+      ]);
 
-      setTimeout(() => {
-        clearInterval(interval);
-        setProgress(100);
-        setCracking(false);
-        setResult(data);
+      if (runIdRef.current !== runId) return;
 
-        if (data.status === 'found') {
-          setLogs((prev) => [
-            ...prev,
-            `[SUCCESS] MATCH FOUND! Original Password: "${data.original_password}" (${data.attack_type})`
-          ]);
-          if (onCrackSuccess) {
-            onCrackSuccess(cleanHash, data.original_password, data.attack_type);
-          }
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            `[EXHAUSTED] Dictionary and Rule-based mutations checked. Hash not matched.`
-          ]);
+      setProgress(100);
+      setCracking(false);
+      setResult(data);
+
+      if (data.status === 'found') {
+        setLogs((prev) => [
+          ...prev,
+          `[SUCCESS] MATCH FOUND! Original Password: "${data.original_password}" (${data.attack_type})`,
+        ]);
+        if (onCrackSuccess) {
+          onCrackSuccess(cleanHash, data.original_password, data.attack_type);
         }
-      }, 1200);
-
+      } else if (data.status === 'not_found') {
+        setLogs((prev) => [
+          ...prev,
+          '[EXHAUSTED] Dictionary and Rule-based mutations checked. Hash not matched.',
+        ]);
+      }
     } catch (err) {
-      clearInterval(interval);
+      if (runIdRef.current !== runId) return;
       setCracking(false);
       setResult({ status: 'error', message: 'Failed to connect to backend crack engine.' });
+      setLogs((prev) => [
+        ...prev,
+        '[ERROR] Failed to connect to backend crack engine.',
+      ]);
     }
   };
 
@@ -131,21 +205,28 @@ export default function HashCrackSimulator({ initialHash = '', onCrackSuccess })
             <span className="text-gray-400 font-semibold">Quick Demos:</span>
             <button
               type="button"
-              onClick={() => handleQuickFill('8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918')}
+              onClick={() => handleQuickFill('240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9')}
               className="px-2.5 py-1 rounded bg-gray-900 hover:bg-gray-800 text-cyan-400 border border-gray-800 font-mono text-[11px]"
             >
               'admin123'
             </button>
             <button
               type="button"
-              onClick={() => handleQuickFill('7110ed4d03e0627918667b7f14b22c7a72d42d326f21789c63ed49826a7e0251')}
+              onClick={() => handleQuickFill('9a85798cfe81660ee17718159eae8d971c4c574690a72318e5dc958c314d88d4')}
               className="px-2.5 py-1 rounded bg-gray-900 hover:bg-gray-800 text-cyan-400 border border-gray-800 font-mono text-[11px]"
             >
               'khushal123'
             </button>
             <button
               type="button"
-              onClick={() => handleQuickFill('5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5')}
+              onClick={() => handleQuickFill('60c0907f3f787d35edf5541302e334f3748d81c7c9c53d608f938f0f7a930f43')}
+              className="px-2.5 py-1 rounded bg-gray-900 hover:bg-gray-800 text-cyan-400 border border-gray-800 font-mono text-[11px]"
+            >
+              'vatsal123'
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickFill('8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92')}
               className="px-2.5 py-1 rounded bg-gray-900 hover:bg-gray-800 text-cyan-400 border border-gray-800 font-mono text-[11px]"
             >
               '123456'
@@ -200,7 +281,12 @@ export default function HashCrackSimulator({ initialHash = '', onCrackSuccess })
               {logs.map((log, idx) => (
                 <div key={idx} className="flex items-start space-x-2">
                   <span className="text-gray-600">{`>`}</span>
-                  <span className={log.includes('SUCCESS') ? 'text-emerald-400 font-bold' : log.includes('EXHAUSTED') ? 'text-rose-400' : 'text-gray-400'}>
+                  <span className={
+                    log.includes('SUCCESS') ? 'text-emerald-400 font-bold'
+                      : log.includes('EXHAUSTED') || log.includes('ERROR') ? 'text-rose-400'
+                        : log.includes('Simulation complete') ? 'text-cyan-400'
+                          : 'text-gray-400'
+                  }>
                     {log}
                   </span>
                 </div>
@@ -247,6 +333,18 @@ export default function HashCrackSimulator({ initialHash = '', onCrackSuccess })
                     </span>
                   </div>
                 </div>
+              </div>
+            ) : result.status === 'error' ? (
+              <div className="p-6 bg-rose-950/30 border-2 border-rose-800/70 rounded-2xl space-y-3 text-left">
+                <div className="flex items-center space-x-2 text-rose-400">
+                  <ShieldX className="w-6 h-6 text-rose-400" />
+                  <span className="text-base font-extrabold uppercase tracking-wider">
+                    Simulation Error
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  {result.message}
+                </p>
               </div>
             ) : (
               <div className="p-6 bg-rose-950/30 border-2 border-rose-800/70 rounded-2xl space-y-3 text-left">

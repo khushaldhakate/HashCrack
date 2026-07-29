@@ -31,7 +31,7 @@ export default function HashGenerator({ onHashGenerated, onNavigateToCrack }) {
         setGeneratedHash(data.sha256_hash);
         setSubmittedUser(data.username);
         if (onHashGenerated) {
-          onHashGenerated(data.sha256_hash, password);
+          onHashGenerated(data.sha256_hash, password, data.username);
         }
       } else {
         setError(data.error || 'Failed to generate hash.');

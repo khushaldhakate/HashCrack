@@ -1,10 +1,11 @@
 import React from 'react';
-import { Shield, KeyRound, Cpu, FileText, Database, Lock } from 'lucide-react';
+import { Shield, KeyRound, Cpu, FileText, Database, Lock, Search } from 'lucide-react';
 
 export default function Navbar({ activeTab, setActiveTab }) {
   const navItems = [
     { id: 'register', label: '1. Hash Generator', icon: KeyRound },
     { id: 'crack', label: '2. HashCrack Simulator', icon: Cpu },
+    { id: 'lookup', label: 'Hash Lookup', icon: Search },
     { id: 'report', label: '3. Security Report', icon: FileText },
     { id: 'vault', label: 'Database Vault', icon: Database },
   ];

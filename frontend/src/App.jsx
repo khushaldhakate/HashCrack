@@ -4,15 +4,18 @@ import HashGenerator from './components/HashGenerator';
 import HashCrackSimulator from './components/HashCrackSimulator';
 import SecurityReport from './components/SecurityReport';
 import DatabaseVault from './components/DatabaseVault';
+import HashLookup from './components/HashLookup';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('register');
   const [latestHash, setLatestHash] = useState('');
   const [latestPassword, setLatestPassword] = useState('');
+  const [latestUsername, setLatestUsername] = useState('');
 
-  const handleHashGenerated = (hash, password) => {
+  const handleHashGenerated = (hash, password, username) => {
     setLatestHash(hash);
     setLatestPassword(password);
+    setLatestUsername(username || '');
   };
 
   const handleNavigateToCrack = (hash) => {
@@ -37,9 +40,12 @@ export default function App() {
         {activeTab === 'crack' && (
           <HashCrackSimulator
             initialHash={latestHash}
+            initialUsername={latestUsername}
             onCrackSuccess={(hash, pwd) => setLatestPassword(pwd)}
           />
         )}
+
+        {activeTab === 'lookup' && <HashLookup />}
 
         {activeTab === 'report' && (
           <SecurityReport

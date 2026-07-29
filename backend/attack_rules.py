@@ -6,14 +6,16 @@ Wordlists and Rule-Based Attack Mutator Module for HashCrack Simulator
 # Comprehensive Dictionary Wordlist for Offline Attack Simulation
 DEFAULT_DICTIONARY = [
     "password",
+    "testpassword",
     "admin123",
     "123456",
-    "khushal",
-    "khushal123",
+    "vatsal",
+    "vatsal123",
     "welcome123",
     "admin",
     "secret",
     "12345678",
+    "123456789",
     "pass123",
     "letmein",
     "qwerty",
@@ -90,17 +92,11 @@ DEFAULT_DICTIONARY = [
     "support123",
     "service123",
     "manager123",
-    "khushaldhakate",
-    "khushaldhakate123",
-    "dhakate123",
-    "dhkate",
-    "kdh",
-    "kdh123",
-    "kdh2026",
-    "dhkate2026",
-    "khushal2026",
-    "dhakatekhushal",
-    "kdhakate"
+    "vatsal",
+    "vatsal123",
+    "vatsal2026",
+    "vatsal@123",
+    "vatsaladmin"
 ]
 
 # Rule Suffixes and Variations

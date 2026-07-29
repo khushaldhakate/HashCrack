@@ -47,7 +47,7 @@ export default function SecurityReport({ currentHash, currentPassword }) {
 
       {/* Main Report Container */}
       <div className="cyber-glass rounded-2xl p-6 sm:p-8 shadow-2xl border border-gray-800 space-y-8">
-        
+
         {/* Top Summary Banner */}
         <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-950/80 rounded-xl border border-gray-800 gap-4">
           <div className="flex items-center space-x-3 text-left">
@@ -77,7 +77,7 @@ export default function SecurityReport({ currentHash, currentPassword }) {
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
+
             {/* Metric 1 */}
             <div className="p-4 bg-gray-950 rounded-xl border border-gray-800 flex items-center justify-between">
               <span className="text-sm text-gray-300 font-medium">Hash Algorithm:</span>
@@ -116,11 +116,10 @@ export default function SecurityReport({ currentHash, currentPassword }) {
             {/* Metric 5 */}
             <div className="p-4 bg-gray-950 rounded-xl border border-gray-800 flex items-center justify-between">
               <span className="text-sm text-gray-300 font-medium">Dictionary Attack Result:</span>
-              <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded border ${
-                report?.dictionary_attack_result === 'Vulnerable'
+              <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded border ${report?.dictionary_attack_result === 'Vulnerable'
                   ? 'bg-rose-950 text-rose-400 border-rose-800'
                   : 'bg-emerald-950 text-emerald-400 border-emerald-800'
-              }`}>
+                }`}>
                 {report?.dictionary_attack_result || 'Passed / Safe'}
               </span>
             </div>
@@ -128,11 +127,10 @@ export default function SecurityReport({ currentHash, currentPassword }) {
             {/* Metric 6 */}
             <div className="p-4 bg-gray-950 rounded-xl border border-gray-800 flex items-center justify-between">
               <span className="text-sm text-gray-300 font-medium">Rule-Based Attack Result:</span>
-              <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded border ${
-                report?.rule_based_attack_result === 'Vulnerable'
+              <span className={`text-xs font-mono font-bold px-2.5 py-1 rounded border ${report?.rule_based_attack_result === 'Vulnerable'
                   ? 'bg-rose-950 text-rose-400 border-rose-800'
                   : 'bg-emerald-950 text-emerald-400 border-emerald-800'
-              }`}>
+                }`}>
                 {report?.rule_based_attack_result || 'Passed / Safe'}
               </span>
             </div>
@@ -149,13 +147,12 @@ export default function SecurityReport({ currentHash, currentPassword }) {
               </h4>
               <p className="text-xs text-gray-400">Based on character entropy and pattern complexity</p>
             </div>
-            <span className={`text-sm font-extrabold uppercase px-3 py-1.5 rounded-lg border ${
-              report?.password_strength === 'Strong'
+            <span className={`text-sm font-extrabold uppercase px-3 py-1.5 rounded-lg border ${report?.password_strength === 'Strong'
                 ? 'bg-emerald-950 text-emerald-300 border-emerald-700'
                 : report?.password_strength === 'Medium'
-                ? 'bg-amber-950 text-amber-300 border-amber-700'
-                : 'bg-rose-950 text-rose-300 border-rose-700'
-            }`}>
+                  ? 'bg-amber-950 text-amber-300 border-amber-700'
+                  : 'bg-rose-950 text-rose-300 border-rose-700'
+              }`}>
               {report?.password_strength || 'Strong'}
             </span>
           </div>
@@ -163,13 +160,12 @@ export default function SecurityReport({ currentHash, currentPassword }) {
           {/* Score Bar */}
           <div className="w-full bg-gray-900 h-2.5 rounded-full overflow-hidden border border-gray-800">
             <div
-              className={`h-full transition-all duration-500 ${
-                (report?.strength_score || 80) > 70
+              className={`h-full transition-all duration-500 ${(report?.strength_score || 80) > 70
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
                   : (report?.strength_score || 80) > 40
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
-                  : 'bg-gradient-to-r from-rose-600 to-red-500'
-              }`}
+                    ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                    : 'bg-gradient-to-r from-rose-600 to-red-500'
+                }`}
               style={{ width: `${report?.strength_score || 80}%` }}
             />
           </div>

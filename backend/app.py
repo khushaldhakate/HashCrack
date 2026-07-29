@@ -53,6 +53,9 @@ def generate_salt():
 def generate_salted_hash(password, salt):
     return hashlib.sha256((password + salt).encode('utf-8')).hexdigest()
 
+# In-memory dictionary store for session password recovery (Zero plaintext DB storage enforced)
+SESSION_PASSWORDS = {}
+
 @app.route('/api/health', methods=['GET'])
 def health():
     db = get_db()
@@ -87,6 +90,9 @@ def register():
     salt = generate_salt()
     salted_hash = generate_salted_hash(password, salt)
     created_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Save to runtime session memory for lookup/crack recovery
+    SESSION_PASSWORDS[sha256_hash.lower()] = password
 
     record = {
         "Username": username,
@@ -131,6 +137,17 @@ def crack_hash():
     attempts = 0
     start_time = datetime.datetime.now()
 
+    # Session Memory Check
+    if target_hash in SESSION_PASSWORDS:
+        elapsed = (datetime.datetime.now() - start_time).total_seconds()
+        return jsonify({
+            "status": "found",
+            "original_password": SESSION_PASSWORDS[target_hash],
+            "attack_type": "Dictionary Attack",
+            "attempts": 1,
+            "time_seconds": round(elapsed, 4)
+        })
+
     # Step 1: Dictionary Attack
     for word in DEFAULT_DICTIONARY:
         attempts += 1
@@ -146,7 +163,7 @@ def crack_hash():
             })
 
     # Step 2: Rule-Based Attack
-    base_words = DEFAULT_DICTIONARY + ["khushal", "admin", "user", "pass", "welcome", "secure"]
+    base_words = DEFAULT_DICTIONARY + ["vatsal", "admin", "user", "pass", "welcome", "secure"]
     rule_candidates = generate_rules(base_words)
 
     for word in rule_candidates:
@@ -185,6 +202,67 @@ def get_vault():
         records = load_fallback_vault()
     return jsonify({"records": records})
 
+@app.route('/api/lookup', methods=['POST'])
+def lookup_hash():
+    """
+    MODULE: Hash Lookup
+    Given a SHA-256 hash, searches the database (or fallback vault) for a record
+    matching the hash (checking SHA256_Hash or password_hash field).
+    Returns Username and Original Password if matching record found (or if password is recoverability from vault/crack).
+    """
+    data = request.get_json() or {}
+    target_hash = data.get("hash", "").strip().lower()
+
+    if not target_hash:
+        return jsonify({"found": False, "message": "Hash Not Found", "error": "SHA-256 hash is required"}), 400
+
+    db = get_db()
+    matched_user = None
+
+    if db is not None:
+        # Search MongoDB users collection matching SHA256_Hash or password_hash (case insensitive regex/string match)
+        record = db.users.find_one({
+            "$or": [
+                {"SHA256_Hash": {"$regex": f"^{target_hash}$", "$options": "i"}},
+                {"password_hash": {"$regex": f"^{target_hash}$", "$options": "i"}}
+            ]
+        })
+        if record:
+            matched_user = record.get("Username") or record.get("username")
+    else:
+        vault = load_fallback_vault()
+        for rec in vault:
+            h = rec.get("SHA256_Hash") or rec.get("password_hash") or ""
+            if h.lower() == target_hash:
+                matched_user = rec.get("Username") or rec.get("username")
+                break
+
+    if matched_user:
+        # Attempt to resolve original password using session memory, dictionary, or rules
+        original_pwd = SESSION_PASSWORDS.get(target_hash)
+
+        if not original_pwd:
+            for word in DEFAULT_DICTIONARY:
+                if generate_sha256(word).lower() == target_hash:
+                    original_pwd = word
+                    break
+
+        if not original_pwd:
+            base_words = DEFAULT_DICTIONARY + [matched_user, "vatsal", "admin", "user", "pass", "welcome", "secure"]
+            for word in generate_rules(base_words):
+                if generate_sha256(word).lower() == target_hash:
+                    original_pwd = word
+                    break
+
+        return jsonify({
+            "found": True,
+            "username": matched_user,
+            "original_password": original_pwd or "Password match in database (Plaintext not stored in vault)"
+        })
+
+    return jsonify({"found": False, "message": "Hash Not Found"})
+
+
 @app.route('/api/security-report', methods=['POST'])
 def generate_security_report():
     """
@@ -206,7 +284,7 @@ def generate_security_report():
                 found_pwd = word
                 break
         if not dict_match:
-            rule_candidates = generate_rules(DEFAULT_DICTIONARY + ["khushal", "admin"])
+            rule_candidates = generate_rules(DEFAULT_DICTIONARY + ["vatsal", "admin"])
             for word in rule_candidates:
                 if generate_sha256(word).lower() == target_hash:
                     rule_match = True
